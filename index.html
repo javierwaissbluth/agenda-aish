@@ -38,18 +38,35 @@ button:disabled { opacity: .6; cursor: default; }
   <a class="olvido" id="o" href="#">¿Olvidaste tu clave? Pídela aquí</a>
   <p class="nota-o" id="no" hidden>Se abrirá tu correo con un mensaje para el Rav Javier Waissbluth (jaim.waissbluth@aish.cl). Envíalo y él te responderá con tu clave.</p>
 </form>
+<form class="caja" id="fn" hidden>
+  <h1>Elige tu clave</h1>
+  <p>Es tu primer ingreso. Elige una clave tuya (al menos 8 caracteres) y actívala. Desde ahora entrarás con ella.</p>
+  <label>Clave nueva<input id="n1" type="password" autocomplete="new-password" minlength="8" required></label>
+  <label>Repite la clave<input id="n2" type="password" autocomplete="new-password" minlength="8" required></label>
+  <button id="bn" type="submit">Activar clave</button>
+  <div class="err" id="en" role="alert"></div>
+</form>
 <script>
 (function () {
-  var ITERS = 600000, VER = "afdd986979";
+  var ITERS = 600000, VER = "273786f549", ENDPOINT = "";
   function hx(h) { var a = new Uint8Array(h.length / 2); for (var i = 0; i < a.length; i++) a[i] = parseInt(h.substr(i * 2, 2), 16); return a; }
   function th(b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); }
   function b64(s) { var t = atob(s), a = new Uint8Array(t.length); for (var i = 0; i < t.length; i++) a[i] = t.charCodeAt(i); return a; }
+  function tob64(b) { var a = new Uint8Array(b), s = ""; for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s); }
+  var TE = new TextEncoder();
   async function abrir(kh) {
     var key = await crypto.subtle.importKey("raw", hx(kh), "AES-GCM", false, ["decrypt"]);
     var buf = await (await fetch("d/agenda.bin?v=" + VER, { cache: "no-store" })).arrayBuffer();
     var html = new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: buf.slice(0, 12) }, key, buf.slice(12)));
     document.open(); document.write(html); document.close();
   }
+  async function kekDe(clave, sal, uso) { var base = await crypto.subtle.importKey("raw", TE.encode(clave), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({ name: "PBKDF2", salt: hx(sal), iterations: ITERS, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, [uso]); }
+  async function abreCon(u, clave) { var kek = await kekDe(clave, u.s, "decrypt"), w = b64(u.w); return th(await crypto.subtle.decrypt({ name: "AES-GCM", iv: w.slice(0, 12) }, kek, w.slice(12))); }
+  async function propia(id) { if (!ENDPOINT || ENDPOINT.indexOf("http") !== 0) return null;
+    try { var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, 7000);
+      var r = await fetch(ENDPOINT + "?id=" + id, { signal: ctl.signal }); clearTimeout(t); var j = await r.json(); return j && j.s && j.w ? j : null; } catch (x) { return null; } }
+  async function hmac(keyBytes, texto) { var k = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]); return new Uint8Array(await crypto.subtle.sign("HMAC", k, TE.encode(texto))); }
   var guardada = null; try { guardada = sessionStorage.getItem("ag-k"); } catch (e) {}
   if (guardada) abrir(guardada).catch(function () { try { sessionStorage.removeItem("ag-k"); } catch (e) {} location.reload(); });
   var f = document.getElementById("f"), b = document.getElementById("b"), e = document.getElementById("e");
@@ -59,19 +76,34 @@ button:disabled { opacity: .6; cursor: default; }
     document.getElementById("no").hidden = false;
     location.href = "mailto:jaim.waissbluth@aish.cl?subject=" + encodeURIComponent("Agenda Aish: olvidé mi clave") + "&body=" + encodeURIComponent(cuerpo);
   });
+  var pendiente = null; // { id, kh } tras entrar con la clave de primer ingreso
   f.addEventListener("submit", async function (ev) {
     ev.preventDefault(); e.textContent = ""; b.disabled = true; b.textContent = "Entrando…";
     try {
       var correo = document.getElementById("c").value.trim().toLowerCase(), clave = document.getElementById("k").value;
-      var id = th(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("agenda-aish:" + correo))).slice(0, 32);
-      var us = await (await fetch("d/u.json?v=" + VER, { cache: "no-store" })).json(), u = us[id];
-      if (!u) throw 0;
-      var base = await crypto.subtle.importKey("raw", new TextEncoder().encode(clave), "PBKDF2", false, ["deriveKey"]);
-      var kek = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: hx(u.s), iterations: ITERS, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
-      var w = b64(u.w), k = await crypto.subtle.decrypt({ name: "AES-GCM", iv: w.slice(0, 12) }, kek, w.slice(12));
-      var kh = th(k); try { sessionStorage.setItem("ag-k", kh); } catch (x) {}
+      var id = th(await crypto.subtle.digest("SHA-256", TE.encode("agenda-aish:" + correo))).slice(0, 32);
+      var us = await (await fetch("d/u.json?v=" + VER, { cache: "no-store" })).json(), u = us[id], pr = await propia(id), kh = null, conBase = false;
+      if (!u && !pr) throw 0;
+      if (pr) { try { kh = await abreCon(pr, clave); } catch (x) {} }
+      if (!kh && u) { kh = await abreCon(u, clave); conBase = true; }
+      if (!kh) throw 0;
+      try { sessionStorage.setItem("ag-k", kh); } catch (x) {}
+      if (conBase && u.t === "temporal" && !pr && ENDPOINT.indexOf("http") === 0) { pendiente = { id: id, kh: kh }; f.hidden = true; document.getElementById("fn").hidden = false; document.getElementById("n1").focus(); return; }
       await abrir(kh);
     } catch (x) { e.textContent = "El correo o la clave no son correctos."; b.disabled = false; b.textContent = "Entrar"; }
+  });
+  document.getElementById("fn").addEventListener("submit", async function (ev) {
+    ev.preventDefault(); var en = document.getElementById("en"), bn = document.getElementById("bn"), n1 = document.getElementById("n1").value, n2 = document.getElementById("n2").value;
+    en.textContent = ""; if (n1.length < 8) { en.textContent = "La clave debe tener al menos 8 caracteres."; return; } if (n1 !== n2) { en.textContent = "Las dos claves no son iguales."; return; }
+    bn.disabled = true; bn.textContent = "Activando…";
+    try {
+      var sal = th(crypto.getRandomValues(new Uint8Array(16))), kek = await kekDe(n1, sal, "encrypt"), iv = crypto.getRandomValues(new Uint8Array(12));
+      var ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, kek, hx(pendiente.kh))), w = new Uint8Array(12 + ct.length); w.set(iv); w.set(ct, 12);
+      var ws = tob64(w), vk = await hmac(hx(pendiente.kh), "agenda-aish:cambio"), sig = th(await hmac(vk, pendiente.id + "|" + sal + "|" + ws));
+      var r = await fetch(ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ id: pendiente.id, s: sal, w: ws, sig: sig }) });
+      var j = await r.json(); if (!j || !j.ok) throw 0;
+      await abrir(pendiente.kh);
+    } catch (x) { en.textContent = "No se pudo activar la clave. Intenta de nuevo en un momento."; bn.disabled = false; bn.textContent = "Activar clave"; }
   });
 })();
 </script>
