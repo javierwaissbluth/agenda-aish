@@ -13,6 +13,7 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #171B1F; --panel: #20262C; --fg: #ECE8DF; --muted: #A3ACB3; --line: #333B43; --slate: #9DB3C7; --danger: #EE8A7C; color-scheme: dark; } }
 :root[data-theme="dark"] { --bg: #171B1F; --panel: #20262C; --fg: #ECE8DF; --muted: #A3ACB3; --line: #333B43; --slate: #9DB3C7; --danger: #EE8A7C; color-scheme: dark; }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; display: grid; place-items: center; padding: 24px 16px; }
 .caja { width: 100%; max-width: 380px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 28px 24px; display: flex; flex-direction: column; gap: 16px; }
 h1 { font-family: var(--display); font-weight: 600; font-size: 1.6rem; margin: 0; letter-spacing: -.01em; }
@@ -31,6 +32,7 @@ button:disabled { opacity: .6; cursor: default; }
 <form class="caja" id="f" autocomplete="on">
   <h1>Agenda Aish</h1>
   <p>Eventos, jaguim y clases de Aish Chile. Entra con tu correo y tu clave.</p>
+  <p class="nota-o" style="text-align:left">¿Es tu primera vez? Usa la clave que te envió el Rav. Después podrás crear tu propia clave.</p>
   <label>Correo<input id="c" type="email" name="email" autocomplete="username" required></label>
   <label>Clave<input id="k" type="password" name="password" autocomplete="current-password" required></label>
   <button id="b" type="submit">Entrar</button>
@@ -39,16 +41,16 @@ button:disabled { opacity: .6; cursor: default; }
   <p class="nota-o" id="no" hidden>Se abrirá tu correo con un mensaje para el Rav Javier Waissbluth (jaim.waissbluth@aish.cl). Envíalo y él te responderá con tu clave.</p>
 </form>
 <form class="caja" id="fn" hidden>
-  <h1>Elige tu clave</h1>
-  <p>Es tu primer ingreso. Elige una clave tuya (al menos 8 caracteres) y actívala. Desde ahora entrarás con ella.</p>
-  <label>Clave nueva<input id="n1" type="password" autocomplete="new-password" minlength="8" required></label>
-  <label>Repite la clave<input id="n2" type="password" autocomplete="new-password" minlength="8" required></label>
-  <button id="bn" type="submit">Activar clave</button>
+  <h1>Crea tu clave</h1>
+  <p>Bienvenido a la Agenda Aish. Como es tu primer ingreso, crea tu clave personal (al menos 8 caracteres). Desde ahora entrarás con tu correo y esta clave.</p>
+  <label>Tu clave nueva<input id="n1" type="password" autocomplete="new-password" minlength="8" required></label>
+  <label>Repite tu clave nueva<input id="n2" type="password" autocomplete="new-password" minlength="8" required></label>
+  <button id="bn" type="submit">Crear mi clave y entrar</button>
   <div class="err" id="en" role="alert"></div>
 </form>
 <script>
 (function () {
-  var ITERS = 600000, VER = "373b359803", ENDPOINT = "https://script.google.com/macros/s/AKfycbzJLYCPH8GUHGcqnWuqY288lYlRQXJ-ASxn_EMxx1u0U62llSIJfxc9eCgnSwQbdOh_/exec";
+  var ITERS = 600000, VER = "a7a82b3d91", ENDPOINT = "https://script.google.com/macros/s/AKfycbzJLYCPH8GUHGcqnWuqY288lYlRQXJ-ASxn_EMxx1u0U62llSIJfxc9eCgnSwQbdOh_/exec";
   function hx(h) { var a = new Uint8Array(h.length / 2); for (var i = 0; i < a.length; i++) a[i] = parseInt(h.substr(i * 2, 2), 16); return a; }
   function th(b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); }
   function b64(s) { var t = atob(s), a = new Uint8Array(t.length); for (var i = 0; i < t.length; i++) a[i] = t.charCodeAt(i); return a; }
@@ -103,7 +105,7 @@ button:disabled { opacity: .6; cursor: default; }
       var r = await fetch(ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ id: pendiente.id, s: sal, w: ws, sig: sig }) });
       var j = await r.json(); if (!j || !j.ok) throw 0;
       await abrir(pendiente.kh);
-    } catch (x) { en.textContent = "No se pudo activar la clave. Intenta de nuevo en un momento."; bn.disabled = false; bn.textContent = "Activar clave"; }
+    } catch (x) { en.textContent = "No se pudo activar la clave. Intenta de nuevo en un momento."; bn.disabled = false; bn.textContent = "Crear mi clave y entrar"; }
   });
 })();
 </script>
