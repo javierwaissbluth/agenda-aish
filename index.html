@@ -40,7 +40,7 @@ button:disabled { opacity: .6; cursor: default; }
 </form>
 <script>
 (function () {
-  var ITERS = 600000, VER = "c87097bd85";
+  var ITERS = 600000, VER = "afdd986979";
   function hx(h) { var a = new Uint8Array(h.length / 2); for (var i = 0; i < a.length; i++) a[i] = parseInt(h.substr(i * 2, 2), 16); return a; }
   function th(b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); }
   function b64(s) { var t = atob(s), a = new Uint8Array(t.length); for (var i = 0; i < t.length; i++) a[i] = t.charCodeAt(i); return a; }
