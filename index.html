@@ -23,6 +23,8 @@ input:focus { outline: 2px solid var(--slate); outline-offset: 1px; }
 button { font: inherit; font-weight: 600; padding: 11px 14px; border: 0; border-radius: var(--r); background: var(--slate); color: #fff; cursor: pointer; }
 button:disabled { opacity: .6; cursor: default; }
 .err { color: var(--danger); font-size: .9rem; min-height: 1.2em; }
+.olvido { color: var(--slate); font-size: .9rem; text-align: center; text-decoration: underline; text-underline-offset: 3px; }
+.nota-o { font-size: .85rem; text-align: center; }
 </style>
 </head>
 <body>
@@ -33,10 +35,12 @@ button:disabled { opacity: .6; cursor: default; }
   <label>Clave<input id="k" type="password" name="password" autocomplete="current-password" required></label>
   <button id="b" type="submit">Entrar</button>
   <div class="err" id="e" role="alert"></div>
+  <a class="olvido" id="o" href="#">¿Olvidaste tu clave? Pídela aquí</a>
+  <p class="nota-o" id="no" hidden>Se abrirá tu correo con un mensaje para el Rav Javier Waissbluth (jaim.waissbluth@aish.cl). Envíalo y él te responderá con tu clave.</p>
 </form>
 <script>
 (function () {
-  var ITERS = 600000, VER = "f148c60b9f";
+  var ITERS = 600000, VER = "c87097bd85";
   function hx(h) { var a = new Uint8Array(h.length / 2); for (var i = 0; i < a.length; i++) a[i] = parseInt(h.substr(i * 2, 2), 16); return a; }
   function th(b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); }
   function b64(s) { var t = atob(s), a = new Uint8Array(t.length); for (var i = 0; i < t.length; i++) a[i] = t.charCodeAt(i); return a; }
@@ -49,6 +53,12 @@ button:disabled { opacity: .6; cursor: default; }
   var guardada = null; try { guardada = sessionStorage.getItem("ag-k"); } catch (e) {}
   if (guardada) abrir(guardada).catch(function () { try { sessionStorage.removeItem("ag-k"); } catch (e) {} location.reload(); });
   var f = document.getElementById("f"), b = document.getElementById("b"), e = document.getElementById("e");
+  document.getElementById("o").addEventListener("click", function (ev) {
+    ev.preventDefault(); var c = document.getElementById("c").value.trim();
+    var cuerpo = "Hola Rav Javier:\n\nOlvidé mi clave de la Agenda Aish. ¿Me la puedes mandar?\n\nMi correo de acceso: " + (c || "(escríbelo aquí)") + "\n\nGracias.";
+    document.getElementById("no").hidden = false;
+    location.href = "mailto:jaim.waissbluth@aish.cl?subject=" + encodeURIComponent("Agenda Aish: olvidé mi clave") + "&body=" + encodeURIComponent(cuerpo);
+  });
   f.addEventListener("submit", async function (ev) {
     ev.preventDefault(); e.textContent = ""; b.disabled = true; b.textContent = "Entrando…";
     try {
